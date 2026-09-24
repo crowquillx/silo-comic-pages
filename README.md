@@ -37,11 +37,17 @@ archive plus maximum extracted bytes: 1.5 GiB with the defaults. Files consume
 space only as bytes are downloaded or extracted. If you lower the cache limit
 below that sum, lower the corresponding archive or extraction limit too.
 
-Update the Aidoku Silo source to v5 or newer. Enter the plugin's installation ID
-from Silo's Installed tab in **Reading → Comic Pages plugin installation ID**.
-This is the installation ID, not the plugin ID `dev.crowquillx.comic-pages`.
-CBR chapters then use the plugin. CBZ chapters keep Aidoku's existing ZIP range
-reader. Leaving the field blank keeps the built-in CBR decoder.
+Update the Aidoku Silo source to v11 or newer. It finds the plugin through the
+**Comic Pages** entry this plugin adds to Silo's user sidebar, so there is
+nothing to paste. That entry opens a short setup page. CBR chapters then use the
+plugin, and CBZ chapters keep Aidoku's existing ZIP range reader. To use the
+built-in CBR decoder instead, turn off **Reading → Use Comic Pages plugin** in
+the source settings.
+
+Sources v5 to v10 need the installation ID from Silo's Installed tab in
+**Reading → Comic Pages plugin installation ID**. This is the installation ID,
+not the plugin ID `dev.crowquillx.comic-pages`. Auto-detection needs Silo's v2
+API; on v1 servers, enter the installation ID.
 
 ## How reading works
 

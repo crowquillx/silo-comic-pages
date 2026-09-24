@@ -38,6 +38,9 @@ func (s *Server) Handle(ctx context.Context, req *pluginv1.HandleHTTPRequest) (*
 	if method == http.MethodGet && path == "/v1/health" {
 		return s.handleHealth(req)
 	}
+	if method == http.MethodGet && path == "/v1/setup" {
+		return setupPage(), nil
+	}
 	if method != http.MethodPost {
 		return responseForError(siloError(http.StatusNotFound, "not_found")), nil
 	}
@@ -79,6 +82,49 @@ func (s *Server) handleHealth(req *pluginv1.HandleHTTPRequest) (*pluginv1.Handle
 	}
 	return jsonResponse(http.StatusOK, map[string]string{"status": "ok"}), nil
 }
+
+// setupPage is the user sidebar entry. The navigable route also lists this
+// installation in Silo's user plugin settings, which is how the Aidoku source
+// finds it without a pasted installation ID.
+func setupPage() *pluginv1.HandleHTTPResponse {
+	return &pluginv1.HandleHTTPResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":            "text/html; charset=utf-8",
+			"Cache-Control":           "no-store",
+			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+		},
+		Body: []byte(setupHTML),
+	}
+}
+
+const setupHTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comic Pages</title>
+<style>
+body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color-scheme: light dark; }
+code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+<h1>Comic Pages</h1>
+<p>This server extracts pages from CBR and CBZ comics so readers can load one
+page at a time instead of downloading and decoding the whole archive.</p>
+<h2>Reading in Aidoku</h2>
+<ol>
+<li>Add the Silo source from <code>https://crowquillx.github.io/aidoku-silo-sources/index.min.json</code>.</li>
+<li>Sign in to this Silo server in the source settings.</li>
+<li>Open a CBR chapter. Source version 11 or newer finds this plugin
+automatically; there is nothing else to configure.</li>
+</ol>
+<p>The first open of a large archive can take a moment while the server
+extracts it.</p>
+</body>
+</html>
+`
 
 func decodeRequest(body []byte) (silo.Request, error) {
 	var request silo.Request

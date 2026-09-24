@@ -1,6 +1,6 @@
 {
   "plugin_id": "dev.crowquillx.comic-pages",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "checksum": "__CHECKSUM__",
   "silo_api_version": "v1",
   "supported_platforms": [
@@ -102,13 +102,22 @@
       "method": "POST",
       "path": "/v1/page/*",
       "access": "authenticated"
+    },
+    {
+      "id": "setup",
+      "method": "GET",
+      "path": "/v1/setup",
+      "access": "authenticated",
+      "navigable": true,
+      "navigation_kind": "user",
+      "navigation_label": "Comic Pages"
     }
   ],
   "presentation": {
     "display_name": "Comic Pages",
     "summary": "Read CBR/RAR comics in Aidoku using server-side page extraction.",
     "description_markdown": "Extracts comic pages from RAR4, RAR5 and ZIP archives using the reader's existing Silo access. Supports solid RAR archives, natural page ordering and a bounded extraction cache. Linux amd64 and arm64. No media filesystem mapping or proprietary unrar executable is required.",
-    "setup_markdown": "Configure the Silo base URL reachable from the plugin and a dedicated writable cache directory. Update the Aidoku Silo source to v5 or newer, then enter this installation's ID in Reading \u2192 Comic Pages plugin installation ID. See the README for resource limits.",
+    "setup_markdown": "Configure the Silo base URL reachable from the plugin and a dedicated writable cache directory. The Aidoku Silo source v11 or newer finds this installation automatically; older sources need its installation ID in Reading \u2192 Comic Pages plugin installation ID. See the README for resource limits.",
     "homepage_url": "https://github.com/crowquillx/silo-comic-pages",
     "source_url": "https://github.com/crowquillx/silo-comic-pages",
     "support_url": "https://github.com/crowquillx/silo-comic-pages/issues",
