@@ -1,146 +1,33 @@
 # Silo Comic Pages
 
-A Silo plugin that extracts CBR/RAR and CBZ/ZIP archives on the server and
-serves individual comic pages. It is designed for
-[the Silo Aidoku source](https://github.com/crowquillx/aidoku-silo-sources).
-No Silo or Aidoku app changes are required.
+Extracts comic archives on the Silo server and serves their pages to the [Silo Aidoku source](https://github.com/crowquillx/aidoku-silo-sources).
 
-The plugin uses the reader's existing Silo credentials to fetch the archive
-through Silo's ebook API. It needs no media filesystem mappings, administrator
-API key, proprietary `unrar` executable, or separate HTTP port.
+Part of [Crowquillx Silo Plugins](https://github.com/crowquillx/crowquillx-silo-plugins#install). Supports Linux amd64 and arm64.
 
 ## Install
 
-Download the binary for your Silo server from
-[Releases](https://github.com/crowquillx/silo-comic-pages/releases).
-Linux amd64 and Linux arm64 builds are published with SHA-256
-checksums and license notices.
+1. Add the [Crowquillx catalog](https://github.com/crowquillx/crowquillx-silo-plugins#install) in **Administration → Plugins → Catalog** and install **Comic Pages**.
+2. In **Installed**, open the plugin's **Configure** button or settings gear, then **Global Configuration**.
+3. Set **Silo base URL** to an address reachable from the plugin, including Silo's HTTP port. Set **Private cache directory** to a dedicated writable directory outside your media library, then select **Save config**.
+4. Install or update the [Silo Aidoku source](https://github.com/crowquillx/aidoku-silo-sources) to v11 or newer and sign in to Silo. It detects Comic Pages automatically for CBR reading.
 
-In Silo, open **Administration → Plugins** and upload the binary. Alternatively,
-add this repository index to the plugin catalog and install Comic Pages:
+The cache defaults to 2 GiB and is cleared when the plugin starts or reconfigures. Give each installation its own cache directory. The first chapter open may take longer while its pages are extracted.
 
-```text
-https://github.com/crowquillx/silo-comic-pages/releases/latest/download/repository.json
-```
+## Build
 
-Configure the plugin with a Silo API base URL reachable from its process and a
-dedicated writable cache directory. For a plugin running inside the Silo
-container, the base URL can be `http://127.0.0.1:8090`. Use a dedicated cache
-directory with enough free disk space. Cached pages are discarded when the
-plugin starts or reconfigures. Do not use a media library directory as the cache
-directory.
-
-Use a separate cache directory for each installation. The plugin rejects
-nonempty directories it does not own and locks its cache against concurrent
-use. Before downloading, it checks that the cache budget has room for the maximum
-archive plus maximum extracted bytes: 1.5 GiB with the defaults. Files consume
-space only as bytes are downloaded or extracted. If you lower the cache limit
-below that sum, lower the corresponding archive or extraction limit too.
-
-Update the Aidoku Silo source to v11 or newer. It finds the plugin through the
-**Comic Pages** entry this plugin adds to Silo's user sidebar, so there is
-nothing to paste. That entry opens a short setup page. CBR chapters then use the
-plugin, and CBZ chapters keep Aidoku's existing ZIP range reader. To use the
-built-in CBR decoder instead, turn off **Reading → Use Comic Pages plugin** in
-the source settings.
-
-Sources v5 to v10 need the installation ID from Silo's Installed tab in
-**Reading → Comic Pages plugin installation ID**. This is the installation ID,
-not the plugin ID `dev.crowquillx.comic-pages`. Auto-detection needs Silo's v2
-API; on v1 servers, enter the installation ID.
-
-## How reading works
-
-1. Aidoku sends the chapter and file IDs, current token, and selected profile
-   in an authenticated POST body to the plugin route on the same Silo server.
-2. The plugin checks the caller against Silo and checks access to that chapter
-   and file. It downloads and extracts an uncached archive in a background job.
-3. Aidoku receives a naturally sorted page list. Each page request checks access
-   again before returning bytes from the extraction cache.
-
-The first chapter open can take longer while extraction runs. Requests report
-that work is in progress instead of holding Silo's 10-second plugin call open.
-Aidoku polls for completion. Large images arrive in 1 MiB chunks because plugin
-responses are buffered through gRPC. Aidoku joins them without recompression.
-
-Tokens are sent in POST bodies, never in page URLs. They are not written into
-the extraction cache. The configured Silo server is the only archive origin;
-clients cannot supply arbitrary URLs or filesystem paths. Cached images remain
-subject to Silo access checks. Restarting the plugin or eviction can invalidate
-an open chapter; reopen it to prepare a fresh page list.
-
-## Disk usage and automatic cleanup
-
-Version 0.1.1 defaults to a **2 GiB cache budget**, covering both cached images
-and temporary extraction data. Old chapters are evicted when a new job needs
-space. `max_cache_bytes` can set a different budget up to 4 GiB. An explicit
-value saved in an existing installation takes precedence over the new default.
-
-Downloaded archive copies and partial extraction files are removed when a job
-finishes or fails. Completed pages expire after **30 minutes without access**,
-with cleanup every minute even when no requests arrive. Active page reads keep
-their files until the read finishes. Silo's original comic files are unchanged.
-
-Graceful shutdown and reconfiguration clear the cache. After a crash, forced
-kill, or power loss, the next startup removes leftover jobs and pages before
-accepting new work. A stopped process cannot run cleanup; if you permanently
-uninstall it after a forced stop, remove its dedicated cache directory too.
-
-Deletion failures keep their disk budget charged and are retried. New extraction
-can return `cache_full` while undeletable data occupies the budget. Filesystem
-metadata and block rounding add some overhead beyond the file-byte budget.
-The plugin executable is about 15 MB and is separate from this cache budget.
-
-## Limits
-
-| Resource | Default / maximum |
-| --- | --- |
-| Compressed archive | 512 MiB |
-| Decoded entry or image | 32 MiB |
-| Decoded image pixels | 67,108,864 |
-| Decoded bytes across all entries | 1 GiB |
-| Archive entries | 2,048 |
-| RAR dictionary window | 64 MiB |
-| Extraction cache | 2 GiB / 4 GiB |
-| Concurrent extraction jobs | 1 |
-| Download and extraction job deadline | 120 seconds |
-| Page response chunk | 1 MiB |
-
-The connection settings accept lower byte and entry limits. Each extraction
-runs in a child process that the plugin can terminate. The child receives a
-2 GiB virtual-address-space limit and has core dumps disabled. These limits
-do not describe a fixed RSS budget. In particular, the RAR4 PPMd decoder can
-allocate a model beyond its dictionary-window setting. The initial release
-supports Linux because this process limit has been implemented there.
-
-Supported page formats are PNG, JPEG, GIF, and static WebP. Animated WebP,
-encrypted archives, split archives, and filesystem links return errors. ZIP64
-end-of-directory records are unsupported; small ZIP archives containing ZIP64
-entry extras are accepted. Original archive files are never modified.
-
-## Development
-
-Go 1.26 is required. The plugin is pure Go and builds with `CGO_ENABLED=0`.
+Requires Go 1.26 or newer.
 
 ```sh
-go mod download
-go test -count=1 ./...
-go vet ./...
+make test
 make build
-bin/plugin manifest
 ```
 
-`internal/archive` owns extraction and image ordering. The server and Silo API
-adapter own authorization, background work, and cache lifecycle. Synthetic
-RAR4/RAR5 normal and solid fixtures contain original generated PNGs; provenance
-is recorded in [testdata/fixtures/README.md](testdata/fixtures/README.md).
-See [the protocol](docs/protocol.md), [cleanup validation](docs/cache-cleanup.md),
-and [initial release validation](docs/validation.md)
-for the request contract, measured artifacts, and test coverage.
+The binary is `bin/plugin`.
 
-## License
+## Acknowledgments
 
-MIT. RAR extraction uses `github.com/nwaples/rardecode/v2` v2.4.1 under
-BSD-2-Clause. The Silo plugin SDK v0.12.0 uses Apache-2.0, and WebP decoding uses
-`golang.org/x/image` v0.46.0 under BSD-3-Clause. The release includes
-[the dependency license texts](THIRD_PARTY_NOTICES.md).
+- [rardecode](https://github.com/nwaples/rardecode) for RAR extraction.
+- [Go image libraries](https://pkg.go.dev/golang.org/x/image) for WebP decoding.
+- [Silo plugin SDK](https://github.com/Silo-Server/silo-plugin-sdk) for Silo integration.
+
+[MIT license](LICENSE). Dependency licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
